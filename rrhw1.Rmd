@@ -1,0 +1,652 @@
+---
+title: "Rhw1"
+author: '103206002'
+date: "2018年3月22日"
+output: html_document
+---
+
+#預覽資料
+```{r}
+
+airline_delay <-read.csv("C:/Users/user/Desktop/2018sprR-master/airline_delay.csv")
+
+str(airline_delay)#列出資料內每個欄位的狀態(結構)
+
+summary(airline_delay)#發現ARR_DELAY(factor)有na值:301個
+#
+class(airline_delay)
+class(airline_delay[,1])#year
+sapply(airline_delay, class)
+```
+```{r}
+library(dplyr)
+library(magrittr)
+library(tidyr)
+```
+#---------NA-------------------
+```{r}
+library(dplyr)
+library(magrittr)
+library(tidyr)
+#na不能對dataframe做，會沒效果->have factot:na
+sum(is.na(airline_delay))#有ARR_DELAY(factor)有na值:301個
+which(is.na(airline_delay))
+
+##有57個na
+airline_delay%>%
+  filter(AIR_TIME=='na')%>%
+  select(CANCELLED,AIR_TIME)%>%
+  count(CANCELLED)
+sum(airline_delay$CANCELLED)
+##
+airline_delay%>%
+  filter(AIR_TIME=='na',CANCELLED==0)%>%
+  select(CANCELLED,AIR_TIME)%>%
+  select(AIR_TIME)%>%
+  
+  AIR_TIME='CANCELLED'
+  
+
+
+ 
+str(airline_delay$AIR_TIME)
+  
+  
+
+```
+#STEP4-------資料轉換-------------------
+airline_delay$ad<-as.numeric(as.character(airline_delay$ARR_DELAY)) #factor->numeric
+airline_delay$flnum<-as.character(airline_delay$FL_NUM) #int->character
+airline_delay$month<-as.character(airline_delay$MONTH)
+
+#STEP5_1-----誤點時間分析------------------------
+
+#airline_delay$ad<-as.numeric(as.character(airline_delay$ARR_DELAY))  
+
+##沒誤點
+airline_delay%>%
+    filter(ad<=0)%>%
+    tally()->ad0
+sum(ad0)
+
+#OR
+  #sum(ad<=0)#有na無法跑
+  #sum(is.na(ad))#301
+  #sum(ad<=0,na.rm = TRUE)
+#OR
+  #ady<-na.omit(ad)#去掉所有NA
+  #sum(ady<0)
+
+
+##有誤點
+airline_delay%>%
+  filter(ad>0)%>%
+  tally()->ad1
+sum(ad1)
+#OR
+  #sum(ady>0)
+
+##誤點率
+sum(ad1)/sum(ad1+ad0)
+
+#OR
+  #ady1<-sum(ady>0)#有誤點
+  #ady0<-sum(ady<=0)沒誤點
+  #ady1/(ady0+ady1)
+
+##班機誤點
+
+sum(airline_delay$CARRIER_DELAY >0)#有班機誤點#no na
+
+#OR
+#airline_delay%>%
+#  filter(CARRIER_DELAY>0)%>%
+#  count(CARRIER_DELAY)%>%
+#  tally()
+
+#
+sum(airline_delay$CARRIER_DELAY >0)/sum(airline_delay$CARRIER_DELAY>=0)#班機誤點率
+sum(airline_delay$CARRIER_DELAY >0)/sum(ad1) #班機誤點佔總誤點比率
+##Q2天氣誤點-------------------------
+sum(airline_delay$WEATHER_DELAY >0)#有天氣誤點
+
+sum(airline_delay$WEATHER_DELAY >0)/sum(airline_delay$WEATHER_DELAY >=0)#天氣誤點率
+sum(airline_delay$WEATHER_DELAY >0)/sum(ad1)#天氣誤點佔總誤點比率
+#---------------------------------
+##停飛
+sum(airline_delay$ CANCELLED)#有停飛
+sum(airline_delay$ CANCELLED >0) /sum(airline_delay$CANCELLED >=0)#停飛率
+sum(airline_delay$ CANCELLED >0)/ sum(ad1) #停飛佔總誤點比率
+
+#sTEP5_2-----飛機誤點分析---------
+
+#誤點的航空公司----
+
+##航空公司航班數
+
+airline_delay%>%
+  count (CARRIER)%>%
+  arrange(desc(n))->c
+c
+
+#OR
+#sort(summary(airline_delay$CARRIER),decreasing = T)
+#barplot
+ggplot(airline_delay,aes(x=CARRIER))+
+  geom_bar(aes(y=..count..,stat='identity'))#stat='identity'以表格值為高度
+
+##航空公司航班比例
+c$rate=c$n/sum(ad1+ad0)
+c%>%
+  arrange(desc(rate))
+
+
+##航空公司航班誤點數
+airline_delay%>%
+  filter(CARRIER_DELAY >0)%>%
+  count(CARRIER)%>%
+  arrange(desc(n))->ccd
+ccd
+
+#barplot
+ggplot(ccd,aes(x=CARRIER))+
+  geom_bar(aes(y=n),stat='identity')
+
+##航空公司航班誤點比率
+ccd$rate=ccd$n/c$n
+
+ccd%>%
+  arrange(desc(rate))
+
+#barplot
+ggplot(ccd,aes(x=CARRIER))+
+  geom_bar(aes(y=rate),stat='identity')
+
+##航空公司天氣誤點數
+airline_delay%>%
+  filter(WEATHER_DELAY >0)%>%
+  count(CARRIER)%>%
+  arrange(desc(n))->cwd
+cwd
+
+#barplot
+ggplot(cwd,aes(x=CARRIER))+
+  geom_bar(aes(y=n),stat='identity')
+
+##航空公司天氣誤點比率
+full_join(cwd,c,by='CARRIER')->cwd_n
+
+cwd_n$rate=cwd_n$n.x/cwd_n$n.y
+cwd_n%>%
+  arrange(desc(rate))
+
+cwd_n%>%
+ggplot(aes(x=CARRIER))+
+  geom_bar(aes(y=rate),stat='identity')
+
+#barplot
+ggplot(ccd,aes(x=CARRIER))+
+  geom_bar(aes(y=rate),stat='identity')
+
+
+#誤點的飛機
+
+##班機總數
+#airline_delay$flnum<-as.character(airline_delay$FL_NUM)
+
+airline_delay%>%
+  mutate(flnum)%>% #轉換資料
+  count(flnum)->flnum_n
+
+flnum_n%>%
+  arrange(desc(n))
+
+#OR
+  #head(sort(table(airline_delay$FL_NUM),decreasing=T),n=30)
+
+#barplot
+ggplot(flnum_n,aes(x=flnum,y=n))+
+  geom_bar(stat='identity')
+
+
+#Q2誤點的班機數-----------
+airline_delay%>%
+  filter(ad>0)%>%  #有誤點
+  select(flnum,ad)%>%
+  count(flnum)->flnum_n1
+
+flnum_n1%>%
+  arrange(desc(n))
+
+
+#班機的誤點機率
+full_join(flnum_n1,flnum_n,by='flnum')->flnum_n12
+flnum_n12$rate=flnum_n12$n.x/flnum_n12$n.y
+flnum_n12%>%
+  arrange(desc(rate))%>%
+  filter(rate>0.4)  #誤點率>0.4
+flnum_n12%>%
+  arrange(desc(rate))%>% 
+  filter(n.y>20)#班機數大於20
+
+  
+
+#誤點航空公司的飛機----
+
+#航空公司的班機的數目
+
+airline_delay%>%
+  select(CARRIER_DELAY,flnum,CARRIER)%>%#方便觀察
+  unite(f_c,CARRIER,flnum,sep='_')%>% #合併表格
+  count(f_c)%>%
+  arrange(desc(n))->flnum_C
+
+flnum_C
+
+
+#OR 各航空公司的班機的數目
+  #table(airline_delay$CARRIER,airline_delay$FL_NUM)
+  #head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[1,],decreasing=T),n=20)
+  #head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[2,],decreasing=T),n=20)
+  #head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[3,],decreasing=T),n=20)
+  #head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[4,],decreasing=T),n=20)
+  #head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[5,],decreasing=T),n=20)
+  #head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[6,],decreasing=T),n=20)
+  #head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[7,],decreasing=T),n=20)
+
+#各航空公司的班機的佔比
+sum(head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[1,],decreasing=T),n=20))/sum(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[1,],decreasing=T),n=20)
+sum(head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[2,],decreasing=T),n=20))/sum(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[2,],decreasing=T),n=20)
+sum(head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[3,],decreasing=T),n=20))/sum(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[3,],decreasing=T),n=20)
+sum(head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[4,],decreasing=T),n=20))/sum(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[4,],decreasing=T),n=20)
+sum(head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[5,],decreasing=T),n=20))/sum(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[5,],decreasing=T),n=20)
+sum(head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[6,],decreasing=T),n=20))/sum(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[6,],decreasing=T),n=20)
+sum(head(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[7,],decreasing=T),n=20))/sum(sort(table(airline_delay$CARRIER,airline_delay$FL_NUM)[7,],decreasing=T),n=20)
+
+#誤點航空公司的班機的數目
+airline_delay%>%
+  filter(CARRIER_DELAY>0)%>%
+  select(CARRIER_DELAY,flnum,CARRIER)%>%
+  unite(f_c,CARRIER,flnum,sep='_')%>%
+  count(f_c)%>%
+  arrange(desc(n))->flnum_C_ad
+
+flnum_C_ad
+#barplot
+ggplot(flnum_C_ad,aes(x=f_c,y=n))+
+  geom_bar(stat='identity')
+
+#barplot:誤點班機數(以航空公司劃分)
+flnum_C_ad%>%
+  separate( f_c,into=c("CARRIER","flnum"),sep='_')%>%
+  ggplot(aes(x=flnum,y= n,fill=CARRIER))+
+  geom_bar(stat='identity',position = 'stack')
+#barplot:誤點班機數(以航空公司分項)
+flnum_C_ad%>%
+  separate( f_c,into=c("CARRIER","flnum"),sep='_')%>%
+  ggplot(aes(x=flnum,y= n,fill=CARRIER))+
+  geom_bar(stat='identity',position = 'dodge')
+
+#航空公司的班機的誤點比率
+t<-full_join(flnum_C_ad,flnum_C,by='f_c')
+t
+t$rate=t$n.x/t$n.y
+t
+
+#圖
+t%>%
+  filter(rate!='NA')%>%
+  ggplot(aes(x=f_c,y=rate))+
+  geom_bar(stat='identity')
+
+
+t%>%
+  filter(rate!='NA'& rate>0.5)%>%#航空公司的班機的誤點比率(>5%)
+  arrange(desc(n.x),desc(rate))->tt
+
+tt
+
+tt$f_c
+
+
+#STEP4_3-----天氣誤點分析----------
+
+##起降地
+
+
+#各起地所占總數
+airline_delay%>%
+  count(ORIGIN)->O
+O
+#各起地所占總數比例
+  sort(summary(airline_delay$ORIGIN),decreasing = T)/sum(ad0+ad1)
+
+  #各落地所占總數
+
+airline_delay%>%
+  count(ORIGIN)->D
+D%>%
+  arrange(desc(n))
+#各落地所占總數比例
+  sort(summary(airline_delay$DEST),decreasing = T)/sum(ad0+ad1)
+
+
+#誤點的起降地-----
+
+#起地天氣誤點
+airline_delay%>%
+  filter(WEATHER_DELAY>0)%>%
+  count(ORIGIN)->OWD
+OWD%>%
+  arrange(desc(n))
+  
+ggplot(OWD,aes(x=ORIGIN))+
+  geom_bar(aes(y=n),stat='identity')
+
+OWD$RATE=OWD$n/O$n
+
+OWD%>%
+  arrange(desc(RATE))
+
+ggplot(OWD,aes(x=ORIGIN))+
+  geom_bar(aes(y=RATE),stat='identity')
+
+#---------------------------------------------------
+
+#落地天氣誤點
+
+airline_delay%>%
+  filter(WEATHER_DELAY>0)%>%
+  count(DEST)->DWD
+
+ggplot(DWD,aes(x=DEST))+
+  geom_bar(aes(y=n),stat='identity')
+
+DWD$RATE=DWD$n/D$n
+
+DWD%>%
+  arrange(desc(RATE))
+
+ggplot(DWD,aes(x=DEST))+
+  geom_bar(aes(y=RATE),stat='identity')
+
+
+#Q飛機誤點與地點是否有關係-----------
+
+#Q1.	哪些機場有哪些出發航班？------
+#不同起降地航班數目
+airline_delay%>%
+  select(ORIGIN,DEST)%>%
+  unite(O_D,ORIGIN,DEST,sep='_')%>%
+  count(O_D)->od
+od
+
+#OR
+  #table(airline_delay$ORIGIN,airline_delay$DEST)
+#-----------------------------------
+
+
+#不同起降地航班誤點數目
+airline_delay%>%
+  filter(ad>0)%>%
+  unite(O_D,ORIGIN,DEST,sep='_')%>%
+  select(O_D,ad)%>%
+  count(O_D)->od_ad
+od_ad
+
+#不同起降地航班誤點比例
+od_ad$rate=od_ad$n/od$n
+od_ad%>%
+  arrange(desc(rate))
+
+#相同地點是否有相同距離?-----------
+#A:yes
+airline_delay%>%
+  select(ORIGIN,DEST,DISTANCE)%>%
+  unite(d_O_D,DISTANCE,ORIGIN,DEST,sep='_')%>%
+  count(d_O_D)
+
+#Q5.	同條航線飛行時間是否有差？ ------
+airline_delay%>%
+  select(ORIGIN,DEST,AIR_TIME)%>%
+  unite(O_D,ORIGIN,DEST,sep='_')->qq
+qq  
+table(qq)
+t(table(qq))
+data.frame(t(table(qq)))->R
+ggplot(R,aes(x=O_D,y=count(O_D),fill=AIR_TIME))+
+  geom_bar(stat='identity',position = 'dodge')
+barplot(t(table(qq)),
+        legend = colnames(table(qq)), beside=TRUE)
+barplot(t(table(qq)), beside=TRUE)
+
+airline_delay%>%
+  select(ORIGIN,DEST,AIR_TIME)%>%
+  unite(T_O_D,AIR_TIME,ORIGIN,DEST,sep='_')%>%
+  count(T_O_D)%>%
+  #filter(n>40)%>%
+  separate(T_O_D,into=c('AIR_TIME','ORIGIN','DEST'),sep='_')%>%
+  unite(O_D,ORIGIN,DEST,sep='_')%>%
+  ggplot(aes(x=O_D,y= n,fill=AIR_TIME))+
+  geom_bar(stat='identity',position = 'dodge')
+
+
+
+#時間分析--------------
+
+##月
+
+#airline_delay$month<-as.character(airline_delay$MONTH)
+#各航空公司班機月班機數
+table(airline_delay$month,airline_delay$CARRIER)
+#各月分班機總數
+airline_delay%>%
+  count(month)->M
+M
+  #or
+  #1月班機總數
+    #sum(table(month,airline_delay$CARRIER)[1,])
+  #12月班機總數
+   #sum(table(month,airline_delay$CARRIER)[2,])
+#barplot
+ggplot(M,aes(x=month,y=n))+
+  geom_bar(stat='identity')
+
+#月與誤點個數
+airline_delay%>%
+  filter(ad>0)%>%
+  count(month)%>%
+  ggplot(aes(x=month,y=n))+
+  geom_bar(stat='identity')
+
+#月與天氣誤點個數
+airline_delay%>%
+  filter(WEATHER_DELAY>0)%>%
+  count(month)%>%
+  ggplot(aes(x=month,y=n))+
+  geom_bar(stat='identity')
+
+#月與班機誤點個數
+airline_delay%>%
+  filter(CARRIER_DELAY>0)%>%
+  count(month)%>%
+  ggplot(aes(x=month,y=n))+
+  geom_bar(stat='identity')
+
+
+
+##周
+
+table(airline_delay$DAY_OF_WEEK,airline_delay$CARRIER)
+
+
+#周與航班總數
+  #有數據存在na
+airline_delay%>%
+  count(DAY_OF_WEEK)%>%
+  ggplot(aes(x=DAY_OF_WEEK,y=n))+
+  geom_bar(stat='identity')
+  #去除na(airline_delay)
+airline_delay%>%
+  filter(ad!='na')%>%
+  count(DAY_OF_WEEK)->w
+
+w%>%
+  ggplot(aes(x=DAY_OF_WEEK,y=n))+
+  geom_bar(stat='identity')
+
+#周與誤點總數
+airline_delay%>%
+  filter(ad>0)%>%
+  select(DAY_OF_WEEK,ad)%>%
+  count(DAY_OF_WEEK)%>%
+  ggplot(aes(x=DAY_OF_WEEK,y=n))+
+  geom_bar(stat='identity')
+
+#周與誤點比例
+airline_delay%>%
+  filter(ad>0)%>%
+  select(DAY_OF_WEEK,ad)%>%
+  count(DAY_OF_WEEK)%>%
+  mutate(rate=n/w$n)%>%
+  ggplot(aes(x=DAY_OF_WEEK,y=rate))+
+  geom_bar(stat='identity')
+
+#周與班機誤點總數
+airline_delay%>%
+    filter(CARRIER_DELAY>0)%>%
+    select(DAY_OF_WEEK,CARRIER_DELAY)%>%
+    count(DAY_OF_WEEK)%>%
+    ggplot(aes(x=DAY_OF_WEEK,y=n))+
+    geom_bar(stat='identity')
+
+#周與班機誤點比例
+airline_delay%>%
+  filter(CARRIER_DELAY>0)%>%
+  select(DAY_OF_WEEK,CARRIER_DELAY)%>%
+  count(DAY_OF_WEEK)%>%
+  mutate(rate=n/w$n)%>%
+  ggplot(aes(x=DAY_OF_WEEK,y=rate))+
+  geom_bar(stat='identity')
+
+
+#周與天氣誤點總數
+airline_delay%>%
+  filter(WEATHER_DELAY>0)%>%
+  select(DAY_OF_WEEK,WEATHER_DELAY)%>%
+  count(DAY_OF_WEEK)%>%
+  ggplot(aes(x=DAY_OF_WEEK,y=n))+
+  geom_bar(stat='identity')
+
+
+#周與天氣誤點比例
+  #星期六比較容易天氣誤點?
+airline_delay%>%
+  filter(WEATHER_DELAY>0)%>%
+  select(DAY_OF_WEEK,WEATHER_DELAY)%>%
+  count(DAY_OF_WEEK)%>%
+  mutate(WEATHER_DELAY_rate=n/w$n)%>%
+  ggplot(aes(x=DAY_OF_WEEK,y=WEATHER_DELAY_rate))+
+  geom_bar(stat='identity')
+
+#周與起地關係
+airline_delay%>%
+  count(DAY_OF_WEEK,ORIGIN)%>%
+  ggplot(mapping=aes(x=DAY_OF_WEEK,y=ORIGIN))+
+  geom_tile(mapping=aes(fill=n))
+
+#周與落地關係
+airline_delay%>%
+  count(DAY_OF_WEEK,DEST)%>%
+  ggplot(mapping=aes(x=DAY_OF_WEEK,y=DEST))+
+  geom_tile(mapping=aes(fill=n))
+
+##日
+#Q3.	班機時間是否跟地點有關？----------- 
+#日期與起地關係
+airline_delay%>%
+  count(FL_DATE,ORIGIN)%>%
+  ggplot(mapping=aes(x=FL_DATE,y=ORIGIN))+
+  geom_tile(mapping=aes(fill=n))
+
+#日期與落地關係
+airline_delay%>%
+  count(FL_DATE,DEST) %>%
+  ggplot(mapping=aes(x=FL_DATE,y=DEST))+
+  geom_tile(mapping=aes(fill=n))
+
+#日期與起落地關係
+airline_delay%>%
+  unite(O_D,ORIGIN,DEST,sep='_')%>%
+  count(FL_DATE,O_D)%>%
+  ggplot(mapping=aes(x=FL_DATE,y=O_D))+
+  geom_tile(mapping=aes(fill=n))
+
+#筆記------------------------------------------------------------
+max(table(airline_delay$ORIGIN,airline_delay$DEST))
+which(table(airline_delay$ORIGIN,airline_delay$DEST)==2529)
+
+#ggplot(airline_delay)+
+#geom_histogram(aes(x=DISTANCE,y=..count..))
+ggplot(airline_delay,aes(x= DAY_OF_WEEK ,y=CARRIER_DELAY))+
+  geom_bar(stat='identity')+ theme()#stat='identity'以表格值為高度
+
+ggplot(airline_delay,aes(x= MONTH ,y=CARRIER_DELAY))+
+  geom_bar(stat='identity')+ theme()#stat='identity'以表格值為高度
+
+  ##filter(ORIGIN=="LAX",DAY_OF_WEEK>3)  %>%##AIR_TIME ：factor用來儲存類別型資料->轉換向量
+  ##
+  #head()=slice(1:6)
+  ## slice(1:9) %>%
+  mutate(YEAR=floor(YEAR))%>% #無條件捨去至個位數
+  group_by(ORIGIN,DISTANCE)%>% #物以類聚 聚合
+  summarise(DAY_OF_WEEK_agv=mean(DAY_OF_WEEK,na.rm = T)%>%round())%>%#想要聚合的變數名稱，聚合運算的結果通常是一個數字
+  arrange(DISTANCE%>%desc()) ##排序 由大到小
+
+
+#install.packages("ggplot2")
+library(ggplot2)
+ggplot(airline_delay, aes(x =  DAY_OF_WEEK , y = WEATHER_DELAY)) +
+  geom_point()+
+  theme_classic()
+
+airline_delay %>%
+  select(YEAR,WEATHER_DELAY,ORIGIN,DEST, DAY_OF_WEEK,DISTANCE    ) %>%
+  ##filter(ORIGIN=="LAX",DAY_OF_WEEK>3)  %>%##AIR_TIME ：factor用來儲存類別型資料->轉換向量
+  ##
+  #head()=slice(1:6)
+  ## slice(1:9) %>%
+  mutate(YEAR=floor(YEAR))%>% #無條件捨去至個位數
+  group_by(ORIGIN,DISTANCE)%>% #物以類聚 聚合
+  summarise(DAY_OF_WEEK_agv=mean(DAY_OF_WEEK,na.rm = T)%>%round())%>%#想要聚合的變數名稱，聚合運算的結果通常是一個數字
+  arrange(DISTANCE%>%desc()) ##排序 由大到小
+
+#cor(airline_delay$WEATHER_DELAY,airline_delay$ORIGIN) 計算兩向量相關變數
+
+##
+
+#備註
+#library(ggplot2)
+#ggplot(airline_delay,aes(x=FL_NUM,y=CARRIER_DELAY))+
+#  geom_bar(stat='identity')+ theme()#stat='identity'以表格值為高度
+#airline_delay$flnum<-as.character(airline_delay$FL_NUM)#指定成先變數列
+#which(is.na(airline_delay$flnum))
+summary(subset(airline_delay,airline_delay$FL_NUM=='424', select = c(CARRIER,FL_NUM)))
+
+#錯誤
+airline_delay%>%
+  filter(CARRIER_DELAY>0)%>%
+  select(flnum,CARRIER)->axc
+
+axc%>%
+  count(flnum)->axcf
+
+airline_delay%>%
+  filter(flnum==axcf$flnum)%>%
+  select(flnum,CARRIER)->axcf1
+
+full_join(axcf, axcf1,by='flnum')
+#
+
+#錯誤
+
